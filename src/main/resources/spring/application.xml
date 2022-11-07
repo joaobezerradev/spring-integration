@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans
+  xmlns:int="http://www.springframework.org/schema/integration"
+  xmlns:int-http="http://www.springframework.org/schema/integration/http"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:int-jdbc="http://www.springframework.org/schema/integration/jdbc"
+  xmlns="http://www.springframework.org/schema/beans"
+  xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+                      http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration-5.2.xsd
+                      http://www.springframework.org/schema/integration/http http://www.springframework.org/schema/integration/http/spring-integration-http-5.2.xsd
+                      http://www.springframework.org/schema/integration/jdbc https://www.springframework.org/schema/integration/jdbc/spring-integration-jdbc.xsd"
+>
+
+  <bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+    <property name="driverClassName" value="com.microsoft.sqlserver.jdbc.SQLServerDriver" />
+    <property name="url" value="jdbc:sqlserver://localhost;port=1433;databaseName=test" />
+    <property name="username" value="sa" />
+    <property name="password" value="Your_password123" />
+  </bean>
+
+  <int:channel id="1" />
+  <int:channel id="2" />
+  <int:channel id="3" />
+  <int:channel id="4" />
+  <int:channel id="5" />
+  <int:channel id="6" />
+  <int:channel id="7" />
+  <int:channel id="8" />
+  <int:channel id="9" />
+
+  <int-http:inbound-gateway
+    supported-methods="GET"
+    path="/{id}"
+    validator="restValidator"
+    payload-expression="new com.example.demo.HeroRequest(#pathVariables.id)"
+    request-channel="1"
+    reply-channel="8"
+    reply-timeout="10000"
+  />
+
+  <int:header-enricher
+    input-channel="1"
+    output-channel="2"
+  >
+    <int:header name="heroId" expression="payload['id']" />
+  </int:header-enricher>
+
+  <int:transformer
+    input-channel="2"
+    output-channel="3"
+    method="execute"
+  >
+    <bean class="com.example.demo.HeroTransformer" />
+  </int:transformer>
+
+
+  <int-jdbc:stored-proc-outbound-gateway
+    id="proc_statuses"
+    data-source="dataSource"
+    request-channel="3"
+    reply-channel="4"
+    stored-procedure-name="proc_statuses"
+    is-function="true"
+    expect-single-result="false"
+  >
+    <int-jdbc:returning-resultset
+      name="statuses-response"
+      row-mapper="com.example.demo.StatusRowMapper"
+    />
+  </int-jdbc:stored-proc-outbound-gateway>
+
+  <int:transformer
+    expression="payload['statuses-response']"
+    input-channel="4"
+    output-channel="5"
+  />
+
+  <int:transformer
+    method="execute"
+    input-channel="5"
+    output-channel="6"
+  >
+    <bean class="com.example.demo.StatusTransformer" />
+  </int:transformer>
+
+  <int:header-enricher
+    input-channel="6"
+    output-channel="7"
+  >
+    <int:header name="statuses-response" expression="payload" />
+  </int:header-enricher>
+
+  <int:transformer
+    input-channel="7"
+    output-channel="8"
+    method="execute"
+  >
+    <bean class="com.example.demo.HeroTransformer" />
+  </int:transformer>
+
+
+  <!-- <int:header-enricher
+    input-channel="status-proc-transformer-channel"
+    output-channel="enrich"
+  >
+  <int:header name="response-statuses"/>
+</int:header-enricher>
+
+  <int:recipient-list-router input-channel="enrich">
+    <int:recipient channel="reply-channel" />
+  </int:recipient-list-router>
+
+  <int-jdbc:stored-proc-outbound-gateway
+    id="proc_heroes"
+    data-source="dataSource"
+    request-channel="status-proc-transformer-channel"
+    reply-channel="hero-proc-channel"
+    stored-procedure-name="proc_heroes"
+    is-function="true"
+    expect-single-result="false"
+  >
+    <int-jdbc:returning-resultset
+      name="heroes-response"
+      row-mapper="com.example.demo.StatusRowMapper"
+    />
+  </int-jdbc:stored-proc-outbound-gateway>
+
+  <int:transformer
+    input-channel="hero-proc-channel"
+    output-channel="enrich"
+  >
+    <bean class="com.example.demo.ResponseTransformer" />
+  </int:transformer> -->
+
+
+</beans>
